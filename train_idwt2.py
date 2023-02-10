@@ -20,11 +20,13 @@ from torch.distributed import init_process_group
 from torch.nn.parallel import DistributedDataParallel
 from env import AttrDict, build_env
 from meldataset import MelDataset, mel_spectrogram, get_dataset_filelist_custom
-from fregan2 import Generator, MultiPeriodDiscriminator, MultiScaleDiscriminator, feature_loss, \
+from fregan2_idwt2 import Generator, MultiPeriodDiscriminator, MultiScaleDiscriminator, feature_loss, \
     generator_loss, discriminator_loss
 from utils import plot_spectrogram, scan_checkpoint, load_checkpoint, save_checkpoint
+
 import librosa
 from pypesq import pesq
+
 torch.backends.cudnn.benchmark = True
 
 
@@ -137,7 +139,7 @@ def train(rank, a, h, n_gpus):
             y = y.unsqueeze(1)  # [Batch, 1, T]
 
             # Generator
-            y_g_hat, y_low_hat, y_high_hat = generator(x)
+            y_g_hat = generator(x)
 
             # mel_spectrogram --> input.shape: [Batch, T]
 
@@ -217,7 +219,7 @@ def train(rank, a, h, n_gpus):
                             y = y.to(device, non_blocking=True)
                             y_mel = y_mel.to(device, non_blocking=True)
                             x = x.to(device, non_blocking=True)
-                            y_g_hat,_,_ = generator(x)
+                            y_g_hat= generator(x)
 
                             # y_hat: 8192
 
@@ -228,7 +230,7 @@ def train(rank, a, h, n_gpus):
 
 
                             val_err_tot24 += F.l1_loss(y_mel, y_g_hat_mel).item()
-                            if steps >0 and j < 400:
+                            if steps > 0 and j < 400:
                                 audio_one_16000 = librosa.resample(y.squeeze().cpu().numpy(), 22050, 16000)
                                 audio_two_16000 = librosa.resample(y_g_hat.squeeze().cpu().numpy(), 22050, 16000)
                                 # PESQ
@@ -270,11 +272,11 @@ def main():
     parser.add_argument('--input_training_file', default='/workspace/sh_lee/dataset/LJSpeech_22050/train')
     parser.add_argument('--input_validation_file', default='/workspace/sh_lee/dataset/LJSpeech_22050/val')
 
-    parser.add_argument('--checkpoint_path', default='/workspace/sh_lee/log_fregan/FreGAN2_v1')
-    parser.add_argument('--config', default='./config_fregan2_v1.json')
+    parser.add_argument('--checkpoint_path', default='/workspace/sh_lee/log_fregan/FreGAN_multi_idwt_v1')
+    parser.add_argument('--config', default='./config_fregan2_multi_idwt_v1.json')
 
-    # parser.add_argument('--checkpoint_path', default='/workspace/sh_lee/log_fregan/FreGAN2_v2')
-    # parser.add_argument('--config', default='./config_fregan2_v2.json')
+    # parser.add_argument('--checkpoint_path', default='/workspace/sh_lee/log_fregan/FreGAN_multi_idwt_v2')
+    # parser.add_argument('--config', default='./config_fregan2_multi_idwt_v2.json')
 
     parser.add_argument('--training_epochs', default=3100, type=int)
     parser.add_argument('--stdout_interval', default=5, type=int)
